@@ -23,21 +23,29 @@ int main()
         return -1;
     }
 
-    // Forking the process
+    // First fork
     int id = fork();
 
     if (id == -1) 
     {  // fork error
         return 2;
     }
-    else
-        if (id == 0) 
-        {  // child process
+    else if (id == 0) 
+    {  // First child process
+        // Second fork
+        int child_id = fork();
+
+        if (child_id == -1) 
+        {  // fork error
+            return 2;
+        }
+        else if (child_id == 0) 
+        {  // Grandchild process
             execl("./calculator", "./calculator", "mmap_sem", NULL);
             return 3;
         }
         else 
-        {  // parent process
+        {  // First child process
             char c;
             c = getchar();
             size_t i = 0;
@@ -55,11 +63,35 @@ int main()
             munmap(buffer, 1024);
 
             int status;
-            waitpid(0, &status, 0);  // waiting for child process to finish
+            waitpid(child_id, &status, 0);  // Waiting for the grandchild process to finish
 
             if (status != 0)
-                perror("Child process exited with an error");
+                perror("Grandchild process exited with an error");
 
             return status;
         }
+    }
+    else 
+    {  // Parent process
+        // Second fork
+        int child_id = fork();
+
+        if (child_id == -1) 
+        {  // fork error
+            return 2;
+        }
+        else if (child_id == 0) 
+        {  // Second child process
+            execl("./calculator", "./calculator", "mmap_sem", NULL);
+            return 3;
+        }
+        else 
+        {  // Parent process
+            waitpid(0, NULL, 0);  // Waiting for the first child process to finish
+            waitpid(child_id, NULL, 0);  // Waiting for the second child process to finish
+            sem_close(sem);
+
+            return 0;
+        }
+    }
 }
